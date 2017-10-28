@@ -1,25 +1,136 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Activity Analysis - Reproducible Research Assignment 1"
+author: "Sonia Tripolitano"
+date: "26 October 2017"
+output: html_document
 ---
 
+## Read in data, examine and process
 
-## Loading and preprocessing the data
+```{r setwd, echo=FALSE}
 
+setwd("C:/Users/Stephane/Documents/Sonia/Learning/coursera/4_Repro_Research/Data")
+# If this is in a seperate code chunk to the read.csv the .Rmd document
+# must be saved in the same place as the data or it didn't work
+```
 
+```{r readdat, echo=TRUE}
 
-## What is mean total number of steps taken per day?
+active<-read.csv("activity.csv")
+active$date<-as.Date(active$date)
+str(active)
+summary(active)
+head(active)
+```
 
+Create a summary dataset which sums up the steps by day
 
+```{r summarise}
+summ<-data.frame(tapply(active$steps,active$date,sum))
+daily<-data.frame(date=as.Date(names(summ[,1])),steps=as.numeric(summ[1]$tapply.active.steps..active.date..sum.))
+str(daily)
+summary(daily)
+```
 
-## What is the average daily activity pattern?
+## Steps taken per day and report mean and median
+```{r hist, echo=FALSE}
 
+hist(daily$steps,breaks=20,col="blue",main="Histogram of Daily Steps",
+     xlab="Total Steps",ylab="Number of Days")
 
+```
+
+```{r meanmed, echo=FALSE}
+mean1<-as.integer(mean(na.exclude(daily$steps)))
+
+median1<-as.integer(median(na.exclude(daily$steps)))
+```
+*The mean number of steps per day is `r mean1` and the median is `r median1`*
+
+## Daily Activity Pattern
+### Summarise data to find average steps per interval
+````{r summariseb}
+active2<-active[complete.cases(active),] # Remove NAs
+summ2<-data.frame(tapply(active2$steps,active2$interval,mean)) 
+intervals<-data.frame(intervals=as.integer(names(summ2[,1])),steps=as.numeric
+                      (summ2[1]$tapply.active2.steps..active2.interval..mean.))
+summary(intervals)
+```
+
+```{r plot2, echo=FALSE}
+plot(x=intervals$intervals,y=intervals$steps,type="l",
+     ylab="Average Steps Taken",xlab="Interval",main="Time Series of Average Steps",col="green")
+
+int1<-as.integer(intervals[intervals$steps==max(intervals$steps),1])
+```
+
+*The 5-minute interval which contains the maximum number of steps is `r int1`*
 
 ## Imputing missing values
 
+I have established previously that only the "steps" column contains NAs.
+```{r impute1, echo=FALSE}
+x<-as.integer(nrow(active[complete.cases(active)==F,]))
+```
+*There are `r x` number of rows with missing values*
 
+### Impute missing values using average steps per interval 
+```{r impute2}
+names(intervals)<-c("interval","avgsteps") # Change names suitable for merging datasets
+active3<-merge(active,intervals,by="interval") 
+active3$stepsfilled<-active3$steps # Use average steps per interval for missing values
+active3[is.na(active3$steps),]$stepsfilled<-active3[is.na(active3$steps),]$avgsteps
+head(active3,20) # Check that imputation is correct
 
-## Are there differences in activity patterns between weekdays and weekends?
+active4<-active3[,c(1,3,5)]
+names(active4)[3]<-c("steps")
+
+# Summarise to get the steps per day
+summ3<-data.frame(tapply(active4$steps,active4$date,sum))
+dailyb<-data.frame(date=as.Date(names(summ3[,1])),steps=as.numeric(summ3[1]$tapply.active4.steps..active4.date..sum.))
+```
+
+```{r plot3, echo=FALSE}
+hist(dailyb$steps,breaks=20,col="yellow",main="Histogram of Daily Steps with Imputation", xlab="Total Steps",ylab="Number of Days")
+mean2<-as.integer(mean(dailyb$steps))
+med2<-as.integer(median(dailyb$steps))
+```
+
+*The mean and median total number of steps taken per day is `r mean2` and `r med2`*
+
+The mean does not differ from the original since the imputation was done using mean.
+The median changes slightly.
+
+## Activity pattern weekdays vs weekends
+Create a new dataset with a weekend/ weekday flag
+```{r}
+active4$weekday<-weekdays(active4$date)
+active4$weekdayflag<-"Weekday"
+active4[active4$weekday==c("Sunday","Saturday"),]$weekdayflag<-"Weekend"
+head(active4) # Check that flag is correct
+```
+
+After summarising data to get the steps per interval per weekend/ weekday flag,
+create panel plot of Time Series of Avg Daily Steps taken
+```{r echo=FALSE}
+summ4<-data.frame(tapply(active4[active4$weekdayflag=="Weekday",]$steps,active4[active4$weekdayflag=="Weekday",]$interval,mean))
+names(summ4)<-"average"
+summ4$flag<-"Weekday"
+
+summ4b<-data.frame(tapply(active4[active4$weekdayflag=="Weekend",]$steps,active4[active4$weekdayflag=="Weekend",]$interval,mean))
+names(summ4b)<-"average"
+summ4b$flag<-"Weekend"
+
+intervals2<-data.frame(intervals=as.integer(names(summ4[,1])),steps=as.numeric
+                       (summ4[1]$average),flag=summ4[2])
+intervals2b<-data.frame(intervals=as.integer(names(summ4b[,1])),steps=as.numeric
+                       (summ4b[1]$average),flag=summ4b[2])
+
+intervalsall<-rbind(intervals2,intervals2b)
+
+library(lattice)
+xyplot(intervalsall$steps~intervalsall$intervals|intervalsall$flag, type="l",
+            main="Avg Steps Taken by Weekday/ Weekend",
+            xlab="Interval", ylab="Avg Steps Taken", cex=1,
+            layout=c(1,2))
+```
