@@ -2,7 +2,9 @@
 title: "Activity Analysis - Reproducible Research Assignment 1"
 author: "Sonia Tripolitano"
 date: "26 October 2017"
-output: html_document
+output: 
+  html_document: 
+    keep_md: yes
 ---
 
 ## Read in data, examine and process
